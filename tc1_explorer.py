@@ -112,7 +112,7 @@ def plot_event(fig, ev, high_detail=False, band="Auto (by distance)", show_spec=
         # local extent. On mid-size azimuthal extents the LAND/OCEAN polygons densify
         # pathologically slowly (tens of seconds), so there we draw coastlines only.
         if land: axm.add_feature(cfeature.LAND,facecolor="#efe9dc")
-        axm.coastlines(resolution=res,color="#9aa7b0",linewidth=0.5)
+        axm.coastlines(resolution=res,color="#6b7b88",linewidth=1.1)
     axm.scatter([config.CASH_LON],[config.CASH_LAT],marker="*",s=300,c="#cc0000",
                 edgecolors="white",linewidths=0.8,transform=pc,zorder=6)
     if ev["lat"] is not None:
