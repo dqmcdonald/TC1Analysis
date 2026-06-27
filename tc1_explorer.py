@@ -28,19 +28,26 @@ import phases as ph                # TauP tt_p / tt_s
 import eqmap                       # load_coords
 
 HERE=os.path.dirname(os.path.abspath(__file__))
+# full catalogue if present, else the bundled sample (so a fresh clone runs)
 CAT=os.path.join(HERE,"cash_detected_catalog.csv")
+if not os.path.exists(CAT):
+    CAT=os.path.join(HERE,"sample_data","cash_detected_catalog.csv")
 
 # ---------------------------------------------------------------- data
 def load_rows():
-    coords=eqmap.load_coords(); rows=[]
+    rows=[]
     if not os.path.exists(CAT): return rows
+    coords=eqmap.load_coords() if os.path.isdir(os.path.join(HERE,"catalogs")) else {}
     for r in csv.DictReader(open(CAT)):
         try: m=float(r["mag"]); dist=float(r["dist_km"]); depth=float(r["depth"] or 0)
         except Exception: continue
-        c=coords.get(r["time"][:19])
+        # prefer lat/lon embedded in the (sample) CSV, else look them up
+        try: lat,lon=float(r["lat"]),float(r["lon"])
+        except Exception:
+            c=coords.get(r["time"][:19]); lat,lon=(c if c else (None,None))
         rows.append(dict(time=r["time"],mag=m,dist=dist,depth=depth,
-            method=r["method"],place=r["place"],regime=r["regime"],
-            lat=(c[0] if c else None),lon=(c[1] if c else None),
+            method=r["method"],place=r["place"],regime=r.get("regime",""),
+            lat=lat,lon=lon,
             body_snr=r.get("body_snr",""),surf_score=r.get("surface_score",""),
             body_lag=r.get("body_lag","")))
     return rows
@@ -48,14 +55,20 @@ def load_rows():
 # ---------------------------------------------------------------- plotting
 def plot_event(fig, ev):
     fig.clf()
-    # ----- map (azimuthal-equidistant, centred on CASH) -----
+    # ----- map (azimuthal-equidistant, centred on CASH; scale adapts to distance) -----
+    pc=ccrs.PlateCarree()
     axm=fig.add_subplot(1,2,1,projection=ccrs.AzimuthalEquidistant(
         central_longitude=config.CASH_LON,central_latitude=config.CASH_LAT))
-    axm.set_global()
+    if ev["lat"] is None or ev["dist"]>=4000:        # far -> whole globe
+        axm.set_global(); res="110m"; scale="Pacific / global"
+    else:                                            # near -> zoom to CASH + epicentre
+        lats=[config.CASH_LAT,ev["lat"]]; lons=[config.CASH_LON,ev["lon"]]
+        pad=max(2.0, 0.30*max(max(lats)-min(lats), max(lons)-min(lons)))
+        axm.set_extent([min(lons)-pad,max(lons)+pad,min(lats)-pad,max(lats)+pad],crs=pc)
+        res="50m"; scale="local / NZ" if ev["dist"]<400 else "regional"
     axm.add_feature(cfeature.OCEAN,facecolor="#dceaf2")
     axm.add_feature(cfeature.LAND,facecolor="#efe9dc")
-    axm.coastlines(resolution="110m",color="#9aa7b0",linewidth=0.5)
-    pc=ccrs.PlateCarree()
+    axm.coastlines(resolution=res,color="#9aa7b0",linewidth=0.5)
     axm.scatter([config.CASH_LON],[config.CASH_LAT],marker="*",s=300,c="#cc0000",
                 edgecolors="white",linewidths=0.8,transform=pc,zorder=6)
     if ev["lat"] is not None:
@@ -64,7 +77,7 @@ def plot_event(fig, ev):
         col={"body":"#2c7fb8","surface":"#1a9850","body+surface":"#7b3294"}.get(ev["method"],"#d62728")
         axm.scatter([ev["lon"]],[ev["lat"]],s=120,c=col,edgecolors="white",
                     linewidths=0.6,transform=pc,zorder=7)
-    axm.set_title(f"M{ev['mag']:.1f}  {ev['place']}\n{ev['dist']:.0f} km from CASH",fontsize=10)
+    axm.set_title(f"M{ev['mag']:.1f}  {ev['place']}\n{ev['dist']:.0f} km from CASH  ·  {scale} view",fontsize=9.5)
 
     # ----- trace -----
     axt=fig.add_subplot(1,2,2)

@@ -20,8 +20,12 @@ against the Earth's core shadow.
   (`0.sac`..`23.sac`), ~18.77 Hz, 3600 s (~67,564 samples) each. Timestamps are **UTC**
   (NZ local = UTC+12, +13 in summer). Span **2016-12-03 → 2025-07-31**,
   72,589 valid hours, 99.8 % readable, 95.7 % coverage.
-- The raw SAC archive is **not** in this repo (it is large). Point `config.py`
+- The full raw SAC archive is **not** in this repo (it is large). Point `config.py`
   / the `CASH_ARCHIVE` env var at your own copy.
+- A small **bundled sample** (`sample_data/`, ~5 MB: 8 representative events + their
+  SAC hours, with coordinates) ships with the repo so the **GUI runs out of the box**.
+  If `CASH_ARCHIVE` is unset and no local archive is found, the tools fall back to it.
+  (`build_sample.py` regenerates it from the full archive.)
 
 ---
 
@@ -68,11 +72,14 @@ Typical regeneration order after new data:
 ### GUI
 
 ```bash
-python tc1_explorer.py
+pip install -r requirements.txt   # numpy scipy matplotlib obspy cartopy (+ tkinter)
+python tc1_explorer.py             # works immediately on the bundled sample
 ```
 Sortable/filterable table of detected earthquakes; selecting one shows it on a
 map and plots the recorded trace annotated with magnitude, distance, depth,
-detection method, SNR and TauP P/S arrival times.
+detection method, SNR and TauP P/S arrival times. With the full archive +
+`combined_catalog.py` output it shows all ~2,700 detections; otherwise it uses the
+8-event bundled sample.
 
 ---
 

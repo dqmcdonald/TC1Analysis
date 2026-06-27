@@ -9,7 +9,12 @@ environment variable to your own path, or edit the default below.
 """
 import os
 
-DATA_ROOT = os.environ.get("CASH_ARCHIVE", os.path.expanduser("~/jamaseisData/CASH"))
+_env = os.environ.get("CASH_ARCHIVE")
+_default = os.path.expanduser("~/jamaseisData/CASH")
+_sample = os.path.join(os.path.dirname(__file__), "sample_data", "CASH")
+# Use CASH_ARCHIVE if set; else the full local archive if present; else the
+# bundled sample dataset (so a fresh clone runs out of the box).
+DATA_ROOT = _env or (_default if os.path.isdir(_default) else _sample)
 
 # Station location (Cashmere, Christchurch, New Zealand)
 CASH_LAT, CASH_LON = -43.567, 172.622

@@ -1,0 +1,9 @@
+time,mag,mtype,dist_km,depth,src,place,regime,body,body_snr,body_lag,surface,surface_score,detected_any,method,lat,lon
+2023-09-19T21:14:49,6.0,Mw(mB),125,12.0,geonet,45 km north of Geraldine,local,1,1483.3,37.0,1,3.6,1,body+surface,-43.697,171.076
+2020-12-22T11:36:46,3.8,M,7,11.0,geonet,5 km east of Christchurch,local,1,2742.0,3.0,0,,1,body,-43.534,172.699
+2020-03-15T15:28:58,5.1,M,100,8.0,geonet,10 km north-west of Culverden,local,1,2023.0,34.0,0,,1,body,-42.677,172.774
+2022-01-12T10:49:36,5.8,MLv,498,189.0,geonet,20 km east of Stratford,regional,1,1716.7,111.0,0,,1,body,-39.329,174.557
+2021-03-04T19:28:33,8.1,mww,1781,29.0,usgs,"2021 Kermadec Islands, New Zealand Earthquake",teleseismic,1,22.2,424.0,1,101.0,1,body+surface,-29.7228,-177.2794
+2017-11-19T22:43:29,7.0,mww,2500,10.0,usgs,"85 km ENE of Tadine, New Caledonia",teleseismic,1,82.3,302.0,1,36.1,1,body+surface,-21.3246,168.6715
+2018-08-19T00:19:40,8.2,mww,2960,600.0,usgs,2018 Fiji Earthquake,teleseismic,1,36.3,292.0,1,34.9,1,body+surface,-18.1125,-178.153
+2025-03-28T06:20:52,7.7,mww,10669,10.0,usgs,"2025 Mandalay, Burma (Myanmar) Earthquake",teleseismic,1,20.7,898.0,1,10.2,1,body+surface,22.011,95.9363

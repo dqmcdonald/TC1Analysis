@@ -18,3 +18,7 @@ venv/
 # generated text summaries (keep requirements.txt)
 summary.txt
 *_summary.txt
+
+# bundled sample dataset (committed so the repo runs out-of-the-box)
+!sample_data/
+!sample_data/**
