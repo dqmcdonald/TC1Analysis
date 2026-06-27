@@ -12,7 +12,7 @@ Features
 Run:  python tc1_explorer.py        (needs the tf venv: obspy, cartopy, tkinter)
 Reads cash_detected_catalog.csv (run combined_catalog.py first) + the SAC archive.
 """
-import os, csv, datetime as dt
+import os, csv, math, datetime as dt
 import numpy as np
 from scipy.signal import detrend
 import tkinter as tk
@@ -53,28 +53,43 @@ def load_rows():
     return rows
 
 # ---------------------------------------------------------------- plotting
-def plot_event(fig, ev):
+def _bounds(ev):
+    lats=[config.CASH_LAT,ev["lat"]]; lons=[config.CASH_LON,ev["lon"]]
+    span=max(max(lats)-min(lats), max(lons)-min(lons)); pad=max(0.25,0.5*span)
+    return [min(lons)-pad,max(lons)+pad,min(lats)-pad,max(lats)+pad], span+2*pad
+
+def plot_event(fig, ev, high_detail=False):
     fig.clf()
-    # ----- map (azimuthal-equidistant, centred on CASH; scale adapts to distance) -----
     pc=ccrs.PlateCarree()
-    axm=fig.add_subplot(1,2,1,projection=ccrs.AzimuthalEquidistant(
-        central_longitude=config.CASH_LON,central_latitude=config.CASH_LAT))
-    if ev["lat"] is None or ev["dist"]>=4000:        # far -> whole globe
-        axm.set_global(); res="110m"; scale="Pacific / global"
-    else:                                            # near -> zoom to CASH + epicentre
-        lats=[config.CASH_LAT,ev["lat"]]; lons=[config.CASH_LON,ev["lon"]]
-        span=max(max(lats)-min(lats), max(lons)-min(lons))
-        pad=max(0.3, 0.5*span)                       # small floor -> tight very-local zoom
-        axm.set_extent([min(lons)-pad,max(lons)+pad,min(lats)-pad,max(lats)+pad],crs=pc)
-        width=span+2*pad                             # view width in degrees
-        res="10m" if width<5 else "50m"              # finest coastlines when zoomed in
-        scale=("very local" if ev["dist"]<60 else
-               "local / NZ" if ev["dist"]<400 else "regional")
-        try: axm.gridlines(color="#cccccc",lw=0.4,alpha=0.6)   # scale reference
-        except Exception: pass
-    axm.add_feature(cfeature.OCEAN,facecolor="#dceaf2")
-    axm.add_feature(cfeature.LAND,facecolor="#efe9dc")
-    axm.coastlines(resolution=res,color="#9aa7b0",linewidth=0.5)
+    # high-detail OSM tiles when requested, zoomed-in, and online; else Natural Earth
+    use_tiles = high_detail and ev["lat"] is not None and ev["dist"]<2500
+    axm=None; scale=""
+    if use_tiles:
+        try:
+            from cartopy.io.img_tiles import OSM
+            try: tiler=OSM(cache=True)
+            except TypeError: tiler=OSM()
+            axm=fig.add_subplot(1,2,1,projection=tiler.crs)
+            extent,width=_bounds(ev); axm.set_extent(extent,crs=pc)
+            zoom=int(max(4,min(13,round(math.log2(360.0/max(width,0.05)))+1)))
+            axm.add_image(tiler,zoom); scale=f"OSM tiles · z{zoom}"
+        except Exception:
+            use_tiles=False; axm=None
+    if axm is None:                                  # Natural Earth (fallback / global)
+        axm=fig.add_subplot(1,2,1,projection=ccrs.AzimuthalEquidistant(
+            central_longitude=config.CASH_LON,central_latitude=config.CASH_LAT))
+        if ev["lat"] is None or ev["dist"]>=4000:    # far -> whole globe
+            axm.set_global(); res="110m"; scale="Pacific / global"
+        else:                                        # near -> zoom to CASH + epicentre
+            extent,width=_bounds(ev); axm.set_extent(extent,crs=pc)
+            res="10m" if width<5 else "50m"
+            scale=("very local" if ev["dist"]<60 else
+                   "local / NZ" if ev["dist"]<400 else "regional")
+            try: axm.gridlines(color="#cccccc",lw=0.4,alpha=0.6)
+            except Exception: pass
+        axm.add_feature(cfeature.OCEAN,facecolor="#dceaf2")
+        axm.add_feature(cfeature.LAND,facecolor="#efe9dc")
+        axm.coastlines(resolution=res,color="#9aa7b0",linewidth=0.5)
     axm.scatter([config.CASH_LON],[config.CASH_LAT],marker="*",s=300,c="#cc0000",
                 edgecolors="white",linewidths=0.8,transform=pc,zorder=6)
     if ev["lat"] is not None:
@@ -144,6 +159,9 @@ class Explorer(tk.Tk):
         field("Dist(km) ≥","dmin",7); field("≤","dmax",7)
         ttk.Button(top,text="Apply",command=self.apply_filter).pack(side=tk.LEFT,padx=8)
         ttk.Button(top,text="Reset",command=self.reset_filter).pack(side=tk.LEFT)
+        self.hd=tk.BooleanVar(value=False)
+        ttk.Checkbutton(top,text="High-detail map (OSM)",variable=self.hd,
+                        command=self.draw_current).pack(side=tk.LEFT,padx=12)
         self.count=ttk.Label(top,text=""); self.count.pack(side=tk.RIGHT,padx=10)
 
         # main split: table | plots
@@ -203,13 +221,15 @@ class Explorer(tk.Tk):
         for var in self.v.values(): var.set("")
         self.rows=list(self.all_rows); self.populate()
 
-    def on_select(self,_):
+    def on_select(self,_): self.draw_current()
+
+    def draw_current(self):
         sel=self.tree.selection()
         if not sel: return
         ev=self.item2ev.get(sel[0])
         if not ev: return
         try:
-            plot_event(self.fig,ev); self.canvas.draw()
+            plot_event(self.fig,ev,high_detail=self.hd.get()); self.canvas.draw()
         except Exception as e:
             self.fig.clf(); ax=self.fig.add_subplot(111)
             ax.text(0.5,0.5,f"plot error:\n{e}",ha="center",va="center",transform=ax.transAxes)

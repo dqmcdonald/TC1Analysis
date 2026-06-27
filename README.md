@@ -81,6 +81,12 @@ detection method, SNR and TauP P/S arrival times. With the full archive +
 `combined_catalog.py` output it shows all ~2,700 detections; otherwise it uses the
 8-event bundled sample.
 
+The map **scale adapts** to each event (very-local → NZ → regional → global). A
+**High-detail map (OSM)** checkbox overlays OpenStreetMap street tiles for zoomed-in
+(local/regional) events — this needs network access at run time and falls back to the
+offline Natural Earth basemap if tiles are unavailable. Tiles are cached locally;
+please respect the OpenStreetMap tile usage policy.
+
 ---
 
 ## Key assumptions / caveats
