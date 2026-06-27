@@ -12,7 +12,7 @@ Features
 Run:  python tc1_explorer.py        (needs the tf venv: obspy, cartopy, tkinter)
 Reads cash_detected_catalog.csv (run combined_catalog.py first) + the SAC archive.
 """
-import os, csv, math, datetime as dt
+import os, csv, math, threading, datetime as dt
 import numpy as np
 from scipy.signal import detrend, spectrogram
 import tkinter as tk
@@ -185,6 +185,7 @@ class Explorer(tk.Tk):
         self.rows=list(self.all_rows)
         self._build()
         self.populate()
+        self.after(150, self._start_warmup)   # preload map/TauP caches off the UI thread
 
     def _build(self):
         # filter bar
@@ -214,6 +215,7 @@ class Explorer(tk.Tk):
         self.spec=tk.BooleanVar(value=False)
         ttk.Checkbutton(top2,text="Show spectrogram",variable=self.spec,
                         command=self.draw_current).pack(side=tk.LEFT,padx=14)
+        self.status=ttk.Label(top2,text="",foreground="#888"); self.status.pack(side=tk.RIGHT,padx=10)
 
         # main split: table | plots
         pan=ttk.Panedwindow(self,orient=tk.HORIZONTAL); pan.pack(fill=tk.BOTH,expand=True)
@@ -271,6 +273,22 @@ class Explorer(tk.Tk):
     def reset_filter(self):
         for var in self.v.values(): var.set("")
         self.rows=list(self.all_rows); self.populate()
+
+    def _start_warmup(self):
+        self.status.config(text="loading map data…")
+        threading.Thread(target=self._warmup,daemon=True).start()
+
+    def _warmup(self):
+        # parse/download the Natural Earth geometries and TauP model once, in the
+        # background, so the first map draw is fast instead of freezing the UI.
+        try:
+            for f in (cfeature.OCEAN, cfeature.LAND): list(f.geometries())
+            for s in ("110m","50m","10m"): list(cfeature.COASTLINE.with_scale(s).geometries())
+            ph.tt_p(100.0,10.0); ph.tt_s(100.0,10.0)
+            msg="map data ready"
+        except Exception as e:
+            msg=f"map preload skipped ({type(e).__name__})"
+        self.after(0, lambda: self.status.config(text=msg))
 
     def on_select(self,_): self.draw_current()
 

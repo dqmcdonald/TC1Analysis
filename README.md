@@ -91,6 +91,10 @@ a high-frequency-noise-cutting 0.5–2 Hz low-pass, broadband, body, or high-fre
 and a **Show spectrogram** toggle that adds a full-band spectrogram panel under the
 trace, both annotated with the TauP P/S arrivals.
 
+On launch the GUI preloads the coastline/TauP data in a background thread (status
+shown top-right), so the first detection you click renders without a freeze. (The
+very first run on a new machine also downloads the Natural Earth map data once.)
+
 ---
 
 ## Key assumptions / caveats
