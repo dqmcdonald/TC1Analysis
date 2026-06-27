@@ -101,16 +101,17 @@ def plot_event(fig, ev, high_detail=False, band="Auto (by distance)", show_spec=
         axm=fig.add_subplot(map_spec,projection=ccrs.AzimuthalEquidistant(
             central_longitude=config.CASH_LON,central_latitude=config.CASH_LAT))
         if ev["lat"] is None or ev["dist"]>=4000:
-            axm.set_global(); res="110m"; scale="Pacific / global"
+            axm.set_global(); res="110m"; land=True; scale="Pacific / global"
         else:
             extent,width=_bounds(ev); axm.set_extent(extent,crs=pc)
-            res="10m" if width<5 else "50m"
+            res="10m" if width<3 else "50m"; land=False   # LAND fill only when global
             scale=("very local" if ev["dist"]<60 else
                    "local / NZ" if ev["dist"]<400 else "regional")
-            try: axm.gridlines(color="#cccccc",lw=0.4,alpha=0.6)
-            except Exception: pass
-        axm.add_feature(cfeature.OCEAN,facecolor="#dceaf2")
-        axm.add_feature(cfeature.LAND,facecolor="#efe9dc")
+        axm.set_facecolor("#dceaf2")                 # ocean = cheap background colour
+        # Filled LAND only where cheap: global (coarse projection threshold) or a tiny
+        # local extent. On mid-size azimuthal extents the LAND/OCEAN polygons densify
+        # pathologically slowly (tens of seconds), so there we draw coastlines only.
+        if land: axm.add_feature(cfeature.LAND,facecolor="#efe9dc")
         axm.coastlines(resolution=res,color="#9aa7b0",linewidth=0.5)
     axm.scatter([config.CASH_LON],[config.CASH_LAT],marker="*",s=300,c="#cc0000",
                 edgecolors="white",linewidths=0.8,transform=pc,zorder=6)
@@ -282,7 +283,7 @@ class Explorer(tk.Tk):
         # parse/download the Natural Earth geometries and TauP model once, in the
         # background, so the first map draw is fast instead of freezing the UI.
         try:
-            for f in (cfeature.OCEAN, cfeature.LAND): list(f.geometries())
+            list(cfeature.LAND.geometries())
             for s in ("110m","50m","10m"): list(cfeature.COASTLINE.with_scale(s).geometries())
             ph.tt_p(100.0,10.0); ph.tt_s(100.0,10.0)
             msg="map data ready"
