@@ -54,15 +54,20 @@ def load_rows():
 
 # ---------------------------------------------------------------- plotting
 def _bounds(ev):
-    lats=[config.CASH_LAT,ev["lat"]]; lons=[config.CASH_LON,ev["lon"]]
+    # unwrap the epicentre longitude across the antimeridian relative to CASH
+    elon=ev["lon"]
+    if   elon-config.CASH_LON> 180: elon-=360
+    elif elon-config.CASH_LON<-180: elon+=360
+    lats=[config.CASH_LAT,ev["lat"]]; lons=[config.CASH_LON,elon]
     span=max(max(lats)-min(lats), max(lons)-min(lons)); pad=max(0.25,0.5*span)
     return [min(lons)-pad,max(lons)+pad,min(lats)-pad,max(lats)+pad], span+2*pad
 
 def plot_event(fig, ev, high_detail=False):
     fig.clf()
     pc=ccrs.PlateCarree()
-    # high-detail OSM tiles when requested, zoomed-in, and online; else Natural Earth
-    use_tiles = high_detail and ev["lat"] is not None and ev["dist"]<2500
+    # high-detail OSM tiles when requested, *local* (<800 km, where street tiles add
+    # value), and online; otherwise Natural Earth. Far events ignore the toggle.
+    use_tiles = high_detail and ev["lat"] is not None and ev["dist"]<800
     axm=None; scale=""
     if use_tiles:
         try:
