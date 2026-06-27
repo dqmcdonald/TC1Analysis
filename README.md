@@ -82,10 +82,14 @@ detection method, SNR and TauP P/S arrival times. With the full archive +
 8-event bundled sample.
 
 The map **scale adapts** to each event (very-local → NZ → regional → global). A
-**High-detail map (OSM)** checkbox overlays OpenStreetMap street tiles for zoomed-in
-(local/regional) events — this needs network access at run time and falls back to the
-offline Natural Earth basemap if tiles are unavailable. Tiles are cached locally;
-please respect the OpenStreetMap tile usage policy.
+**High-detail map (OSM)** checkbox overlays OpenStreetMap street tiles for local
+(< 800 km) events — needs network at run time, falls back to the offline Natural Earth
+basemap otherwise; tiles are cached (respect the OpenStreetMap tile usage policy).
+
+The trace view has a **band selector** (auto-by-distance, very-long-period,
+a high-frequency-noise-cutting 0.5–2 Hz low-pass, broadband, body, or high-freq/local)
+and a **Show spectrogram** toggle that adds a full-band spectrogram panel under the
+trace, both annotated with the TauP P/S arrivals.
 
 ---
 

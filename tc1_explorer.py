@@ -14,7 +14,7 @@ Reads cash_detected_catalog.csv (run combined_catalog.py first) + the SAC archiv
 """
 import os, csv, math, datetime as dt
 import numpy as np
-from scipy.signal import detrend
+from scipy.signal import detrend, spectrogram
 import tkinter as tk
 from tkinter import ttk
 from matplotlib.figure import Figure
@@ -62,11 +62,28 @@ def _bounds(ev):
     span=max(max(lats)-min(lats), max(lons)-min(lons)); pad=max(0.25,0.5*span)
     return [min(lons)-pad,max(lons)+pad,min(lats)-pad,max(lats)+pad], span+2*pad
 
-def plot_event(fig, ev, high_detail=False):
-    fig.clf()
-    pc=ccrs.PlateCarree()
-    # high-detail OSM tiles when requested, *local* (<800 km, where street tiles add
-    # value), and online; otherwise Natural Earth. Far events ignore the toggle.
+BAND_PRESETS={
+ "Auto (by distance)":None,
+ "0.05–0.5 Hz (very long period)":(0.05,0.5),
+ "0.5–2 Hz (cut HF noise)":(0.5,2.0),
+ "0.5–9 Hz (broadband)":(0.5,9.0),
+ "1–8 Hz (body waves)":(1.0,8.0),
+ "2–9 Hz (high-freq / local)":(2.0,9.0),
+}
+def _band(name, dist):
+    b=BAND_PRESETS.get(name)
+    if b: return b
+    return (1.5,9.0) if dist<300 else (1.0,8.0) if dist<1500 else (0.8,6.0)
+
+def plot_event(fig, ev, high_detail=False, band="Auto (by distance)", show_spec=False):
+    fig.clf(); pc=ccrs.PlateCarree()
+    if show_spec:                                    # map | trace-over-spectrogram
+        gs=fig.add_gridspec(2,2,width_ratios=[1,1.15],height_ratios=[1,1],wspace=0.2,hspace=0.4)
+        map_spec=gs[:,0]; trace_spec=gs[0,1]; spec_spec=gs[1,1]
+    else:
+        gs=fig.add_gridspec(1,2,width_ratios=[1,1.15],wspace=0.2)
+        map_spec=gs[0,0]; trace_spec=gs[0,1]; spec_spec=None
+    # ----- map -----
     use_tiles = high_detail and ev["lat"] is not None and ev["dist"]<800
     axm=None; scale=""
     if use_tiles:
@@ -74,18 +91,18 @@ def plot_event(fig, ev, high_detail=False):
             from cartopy.io.img_tiles import OSM
             try: tiler=OSM(cache=True)
             except TypeError: tiler=OSM()
-            axm=fig.add_subplot(1,2,1,projection=tiler.crs)
+            axm=fig.add_subplot(map_spec,projection=tiler.crs)
             extent,width=_bounds(ev); axm.set_extent(extent,crs=pc)
             zoom=int(max(4,min(13,round(math.log2(360.0/max(width,0.05)))+1)))
             axm.add_image(tiler,zoom); scale=f"OSM tiles · z{zoom}"
         except Exception:
             use_tiles=False; axm=None
     if axm is None:                                  # Natural Earth (fallback / global)
-        axm=fig.add_subplot(1,2,1,projection=ccrs.AzimuthalEquidistant(
+        axm=fig.add_subplot(map_spec,projection=ccrs.AzimuthalEquidistant(
             central_longitude=config.CASH_LON,central_latitude=config.CASH_LAT))
-        if ev["lat"] is None or ev["dist"]>=4000:    # far -> whole globe
+        if ev["lat"] is None or ev["dist"]>=4000:
             axm.set_global(); res="110m"; scale="Pacific / global"
-        else:                                        # near -> zoom to CASH + epicentre
+        else:
             extent,width=_bounds(ev); axm.set_extent(extent,crs=pc)
             res="10m" if width<5 else "50m"
             scale=("very local" if ev["dist"]<60 else
@@ -103,39 +120,57 @@ def plot_event(fig, ev, high_detail=False):
         col={"body":"#2c7fb8","surface":"#1a9850","body+surface":"#7b3294"}.get(ev["method"],"#d62728")
         axm.scatter([ev["lon"]],[ev["lat"]],s=120,c=col,edgecolors="white",
                     linewidths=0.6,transform=pc,zorder=7)
-    axm.set_title(f"M{ev['mag']:.1f}  {ev['place']}\n{ev['dist']:.0f} km from CASH  ·  {scale} view",fontsize=9.5)
+    axm.set_title(f"M{ev['mag']:.1f}  {ev['place']}\n{ev['dist']:.0f} km from CASH  ·  {scale}",fontsize=9.5)
 
     # ----- trace -----
-    axt=fig.add_subplot(1,2,2)
+    axt=fig.add_subplot(trace_spec)
     o=dt.datetime.strptime(ev["time"],"%Y-%m-%dT%H:%M:%S")
     dist,depth=ev["dist"],ev["depth"]
     P=ph.tt_p(dist,depth); S=ph.tt_s(dist,depth)
-    if dist<300:    band=(1.5,9.0)
-    elif dist<1500: band=(1.0,8.0)
-    else:           band=(0.8,6.0)
+    lo,hi=_band(band,dist)
     pre=60; post=S+200
     t,y,fs=G.get_trace(o,pre,post)
-    if t is None or len(t)<10:
-        axt.text(0.5,0.5,"waveform unavailable",ha="center",va="center",transform=axt.transAxes)
+    xlo,xhi=max(-pre,P-90),post
+    if t is None or len(t)<32:
+        axt.text(0.5,0.5,"waveform unavailable",ha="center",va="center",transform=axt.transAxes); y=None
     else:
-        yb=G.bp(detrend(y,type="linear"),fs,band[0],band[1])
+        yb=G.bp(detrend(y,type="linear"),fs,lo,hi)
         axt.plot(t,yb,lw=0.4,color="#1f3b57")
         for tt,c,nm in [(P,"#1a9850","P"),(S,"#d62728","S")]:
             if -pre<=tt<=post:
                 axt.axvline(tt,color=c,ls="--",lw=1.1)
                 axt.text(tt,axt.get_ylim()[1]*0.9,f" {nm}",color=c,fontsize=9,weight="bold")
-        axt.set_xlim(max(-pre,P-90),post)
-        axt.set_xlabel("seconds after origin (UTC)"); axt.set_ylabel("counts")
+        axt.set_xlim(xlo,xhi)
         peak=float(np.max(np.abs(yb)))
         info=(f"M{ev['mag']:.1f}   {ev['dist']:.0f} km   depth {ev['depth']:.0f} km\n"
               f"method: {ev['method']}\n"
               f"SNR body {ev['body_snr'] or '-'} / surf {ev['surf_score'] or '-'}\n"
               f"TauP  P {P:.0f}s   S {S:.0f}s   S-P {S-P:.0f}s\n"
-              f"peak {peak:.0f} counts  (band {band[0]}-{band[1]} Hz)")
+              f"peak {peak:.0f} counts")
         axt.text(0.98,0.97,info,ha="right",va="top",transform=axt.transAxes,fontsize=8,
                  family="monospace",bbox=dict(boxstyle="round",fc="#fffbe6",ec="#ccc",alpha=0.9))
-    axt.set_title(f"{ev['time']} UTC — recorded trace",fontsize=10)
-    fig.tight_layout()
+        if not show_spec: axt.set_xlabel("seconds after origin (UTC)")
+    axt.set_ylabel("counts"); axt.set_title(f"trace · {lo}–{hi} Hz",fontsize=10)
+
+    # ----- spectrogram (full band) -----
+    if spec_spec is not None:
+        axs=fig.add_subplot(spec_spec)
+        if y is not None and len(y)>=128:
+            yd=detrend(y,type="linear")
+            nper=min(512 if dist>=1500 else 256, len(yd))
+            f_,st,Sxx=spectrogram(yd,fs,nperseg=nper,noverlap=int(nper*0.85))
+            st=st+t[0]; fmax=min(10.0,fs/2.0); fm=f_<=fmax
+            axs.pcolormesh(st,f_[fm],10*np.log10(Sxx[fm]+1e-9),shading="auto",cmap="magma")
+            for tt,c in [(P,"#7CFC00"),(S,"#ff5555")]:
+                if xlo<=tt<=xhi: axs.axvline(tt,color=c,ls="--",lw=1.0)
+            axs.set_xlim(xlo,xhi); axs.set_ylim(0,fmax)
+        else:
+            axs.text(0.5,0.5,"no data",ha="center",va="center",transform=axs.transAxes)
+        axs.set_ylabel("Hz"); axs.set_xlabel("seconds after origin (UTC)")
+        axs.set_title("spectrogram (full band)",fontsize=9.5)
+    import warnings
+    with warnings.catch_warnings():           # GeoAxes + tight_layout warns harmlessly
+        warnings.simplefilter("ignore"); fig.tight_layout()
 
 # ---------------------------------------------------------------- GUI
 COLS=[("time","Time (UTC)",150,False),("mag","Mag",55,True),("dist","Dist km",75,True),
@@ -168,6 +203,17 @@ class Explorer(tk.Tk):
         ttk.Checkbutton(top,text="High-detail map (OSM)",variable=self.hd,
                         command=self.draw_current).pack(side=tk.LEFT,padx=12)
         self.count=ttk.Label(top,text=""); self.count.pack(side=tk.RIGHT,padx=10)
+
+        # second row: trace display controls
+        top2=ttk.Frame(self,padding=(6,0,6,4)); top2.pack(side=tk.TOP,fill=tk.X)
+        ttk.Label(top2,text="Trace band:").pack(side=tk.LEFT,padx=(8,2))
+        self.band=tk.StringVar(value="Auto (by distance)")
+        cb=ttk.Combobox(top2,textvariable=self.band,values=list(BAND_PRESETS.keys()),
+                        state="readonly",width=28); cb.pack(side=tk.LEFT)
+        cb.bind("<<ComboboxSelected>>",lambda _:self.draw_current())
+        self.spec=tk.BooleanVar(value=False)
+        ttk.Checkbutton(top2,text="Show spectrogram",variable=self.spec,
+                        command=self.draw_current).pack(side=tk.LEFT,padx=14)
 
         # main split: table | plots
         pan=ttk.Panedwindow(self,orient=tk.HORIZONTAL); pan.pack(fill=tk.BOTH,expand=True)
@@ -234,7 +280,8 @@ class Explorer(tk.Tk):
         ev=self.item2ev.get(sel[0])
         if not ev: return
         try:
-            plot_event(self.fig,ev,high_detail=self.hd.get()); self.canvas.draw()
+            plot_event(self.fig,ev,high_detail=self.hd.get(),
+                       band=self.band.get(),show_spec=self.spec.get()); self.canvas.draw()
         except Exception as e:
             self.fig.clf(); ax=self.fig.add_subplot(111)
             ax.text(0.5,0.5,f"plot error:\n{e}",ha="center",va="center",transform=ax.transAxes)
