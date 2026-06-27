@@ -1,0 +1,7 @@
+numpy>=1.24
+scipy>=1.10
+matplotlib>=3.7
+obspy>=1.4
+cartopy>=0.22
+# tkinter is required for tc1_explorer.py (ships with most Python installs;
+# on some systems install the OS package, e.g. `brew install python-tk`)

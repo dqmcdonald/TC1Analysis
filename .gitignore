@@ -1,0 +1,20 @@
+# --- generated output (regenerable from the scripts) ---
+*.png
+*.pdf
+*.csv
+*.log
+
+# --- fetched / cached data (not source) ---
+catalogs/
+coastline.geojson
+
+# --- python ---
+__pycache__/
+*.pyc
+.venv/
+venv/
+.DS_Store
+
+# generated text summaries (keep requirements.txt)
+summary.txt
+*_summary.txt
