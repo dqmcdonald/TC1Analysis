@@ -63,9 +63,15 @@ def plot_event(fig, ev):
         axm.set_global(); res="110m"; scale="Pacific / global"
     else:                                            # near -> zoom to CASH + epicentre
         lats=[config.CASH_LAT,ev["lat"]]; lons=[config.CASH_LON,ev["lon"]]
-        pad=max(2.0, 0.30*max(max(lats)-min(lats), max(lons)-min(lons)))
+        span=max(max(lats)-min(lats), max(lons)-min(lons))
+        pad=max(0.3, 0.5*span)                       # small floor -> tight very-local zoom
         axm.set_extent([min(lons)-pad,max(lons)+pad,min(lats)-pad,max(lats)+pad],crs=pc)
-        res="50m"; scale="local / NZ" if ev["dist"]<400 else "regional"
+        width=span+2*pad                             # view width in degrees
+        res="10m" if width<5 else "50m"              # finest coastlines when zoomed in
+        scale=("very local" if ev["dist"]<60 else
+               "local / NZ" if ev["dist"]<400 else "regional")
+        try: axm.gridlines(color="#cccccc",lw=0.4,alpha=0.6)   # scale reference
+        except Exception: pass
     axm.add_feature(cfeature.OCEAN,facecolor="#dceaf2")
     axm.add_feature(cfeature.LAND,facecolor="#efe9dc")
     axm.coastlines(resolution=res,color="#9aa7b0",linewidth=0.5)
