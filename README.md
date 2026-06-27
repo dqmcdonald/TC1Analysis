@@ -165,5 +165,31 @@ flagged.
 
 ---
 
+## Possible further analyses
+
+Feasible with this single vertical channel + the installed tools (obspy, cartopy),
+not yet implemented:
+
+- **Gutenberg–Richter b-value & completeness** — frequency–magnitude distribution of
+  NZ seismicity (b-value) and CASH's magnitude of completeness Mc as a function of
+  distance, from the catalogues + detections.
+- **Template / matched-filter detection** — cross-correlate a strong local event as a
+  template through the surrounding days to pull out small repeating aftershocks below
+  the STA/LTA threshold (obspy correlation tools).
+- **Travel-time / clock residuals** — auto-picked P minus the TauP prediction for
+  well-located events over 9 years, to detect timing/clock drift (and independently
+  cross-check the mid-2025 fault).
+- **Spectral-ratio / site response** — compare event spectra across the archive for
+  consistent site amplification features.
+- **Investigate the mid-Sep 2020 noise spike** and a full QC sweep to bound the exact
+  onset of the mid-2025 sensitivity loss.
+
+Not possible with the current data (single vertical-component station):
+
+- **Back-azimuth / polarization / receiver functions** — need 3 components (Z + 2 horizontals).
+- **Ambient-noise cross-correlation / tomography** — need ≥2 stations.
+
+---
+
 *Generated as an exploratory analysis of a backyard seismometer; not a calibrated
 monitoring product.*
