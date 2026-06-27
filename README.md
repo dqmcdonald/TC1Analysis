@@ -61,6 +61,9 @@ need **obspy**, so run them with the venv that has it.
 | 7 | `combined_catalog.py` | `combined_catalog.csv`, `cash_detected_catalog.csv` | Merge both detectors into one method-tagged catalogue. |
 | 8 | `eqmap.py` | `CASH_detection_map.*` | Cartopy azimuthal-equidistant, CASH-centred detection map. |
 | 9 | `detectability_distance.py` | `fig_detectability_distance.png` | Detectability vs distance/magnitude with the core shadow. |
+|   | `sp_distance.py` | `sp_estimates.csv`, `fig_sp_distance.png` | Single-station S-P distance from the trace vs catalogue (nominal & depth-aware). |
+|   | `magnitude.py` | `magnitude_estimates.csv`, `fig_magnitude.png` | Single-station magnitude (amplitude ML & duration Md) vs catalogue. |
+|   | `ppsd_analysis.py` | `fig_ppsd*.png`, `cash_ppsd.npz` | obspy PPSD noise spectrum (synthetic geophone response) + temporal PSD. |
 | 10| `phases.py` | `CASH_wave_analysis.pdf` | Wave-type / phase ID (P/S/pP via TauP, spectrograms) for selected events. |
 |   | `myanmar_2025.py` | `CASH_myanmar_2025.pdf` | Surface-wave case study (M7.7 Myanmar 2025). |
 |   | `generate_report.py` | `CASH_earthquake_report.pdf` | Headline report: cover, tables, map, detectability, event cards. |
